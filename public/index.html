@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta http-equiv="X-UA-Compatible" content="ie=edge">
+   <title>Document</title>
+   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+   <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"
+      integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+   <script src='https://api.mapbox.com/mapbox-gl-js/v2.6.0/mapbox-gl.js'></script>
+
+   <link href='https://api.mapbox.com/mapbox.js/v3.3.1/mapbox.css' rel='stylesheet' />
+   <style>
+      body {
+         margin: 0;
+         padding: 0;
+      }
+
+      #map {
+         position: absolute;
+         top: 10px;
+         height: 70%;
+         width: 70%;
+      }
+   </style>
+</head>
+
+<body>
+   <div id="map"></div>
+</body>
+<script type="text/javascript">
+   $(document).ready(function () {
+      mapboxgl.accessToken =
+         "pk.eyJ1IjoibWVnYW4tbHVpc2EiLCJhIjoiY2t2bGRocTBqYzJlbTJ2dDlidW1ycjk3eSJ9.Fd49RGr42afMbItMs5bfkg";
+
+      // Creates new map instance, ensureing the canvas can be exported to a PNG with the preserveDrawingBuffer property
+      const map = new mapboxgl.Map({
+         container: "map",
+         style: "mapbox://styles/mapbox/outdoors-v11",
+         center: [-88.442, 39.437],
+         minZoom: 10,
+         zoom: 14.5,
+         preserveDrawingBuffer: true
+      });
+      window.map = map
+      map.on("load", () => {
+         // This adds a soil symbol layer at runtime for the. labels, using an extrnal GeoJSON source.
+         map.addLayer({
+            id: "soil-labels",
+            type: "symbol",
+            source: {
+               type: "geojson",
+               data: "https://api.jsonbin.io/b/62aa3b38402a5b3802298d51"
+            },
+            layout: {
+               "text-field": ["get", "soil_code"],
+               "text-size": 10,
+               "text-anchor": "center"
+            }
+         });
+
+         // This adds a soil fill layer at runtime, using the same extrnal GeoJSON source. The fill color is determined by the GeoJSON property "fill". The layer is also placed under the label layer.
+         map.addLayer(
+            {
+               id: "soil-copy",
+               type: "fill",
+               source: {
+                  type: "geojson",
+                  data: "https://api.jsonbin.io/b/62aa3b38402a5b3802298d51"
+               },
+               paint: {
+                  "fill-color": ["get", "fill"]
+               }
+            },
+            "soil-labels"
+         );
+
+         function dataURLtoBlob(dataurl) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+               bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while (n--) {
+               u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+         }
+
+         // On map click, the canvas is grabbed and its data is stored in a URL. This URL will be added as the src for a newly created image HTML element. The HTML elements will be opened in a new window.
+         // map.on("click", () => {
+         //   const imageURL = map.getCanvas().toDataURL("image/png", 1.0);
+         //   var image = new Image();
+         //   image.src = imageURL;
+         //   const win = window.open("");
+         //   var div = document.createElement("div");
+         //   div.innerHTML = "This is a map";
+         //   win.document.body.appendChild(image);
+         //   win.document.body.appendChild(div);
+         // });
+         setTimeout(() => {
+            const imageURL = map.getCanvas().toDataURL("image/png", 1.0);
+            const serverUrl = "http://localhost:369/upload"
+            const form = new FormData()
+            console.log("posting image")
+            form.append('file', dataURLtoBlob(imageURL), {
+               contentType: 'image/jpeg',
+               name: 'image',
+               filename: 'imageFileName.jpg'
+            })
+
+            //Submit form
+            axios({
+               url: serverUrl,
+               method: "POST",
+               data: form,
+               headers: { "Content-Type": `multipart/form-data; boundary=${form._boundary}` }
+            })
+           
+         }, "5000")
+
+         // $( "#map" ).trigger( "click" );
+      });
+
+
+   });
+
+
+
+</script>
+
+</html>
